@@ -726,9 +726,9 @@
     "@types/tern" "*"
 
 "@types/consolidate@^0.14.0":
-  version "0.14.0"
-  resolved "https://registry.yarnpkg.com/@types/consolidate/-/consolidate-0.14.0.tgz#856735b3a1421513bd12b9bdd588923bec773bff"
-  integrity sha512-az7GpbuJoBJC/rGb/m7ZIsIvNY6NdUlklydmZ3RO+rPqgclj/dck3KEDesr44oZ7hk8Afs3tPJOKECVocVKcQQ==
+  version "0.14.1"
+  resolved "https://registry.yarnpkg.com/@types/consolidate/-/consolidate-0.14.1.tgz#78f01b1ed747d945dea9969581fcc1d0cb59bad8"
+  integrity sha512-p0QTiPgjYssVJEo8zJ1WPfvfCpSvIU9oLZ7WPKl4Nx5dvaRAGb7Mk0a14T6UOVhI5PXYL7CkM4+lS7VRrUePUQ==
   dependencies:
     "@types/bluebird" "*"
     "@types/node" "*"
