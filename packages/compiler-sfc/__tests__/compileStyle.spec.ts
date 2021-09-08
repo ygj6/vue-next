@@ -136,6 +136,12 @@ describe('SFC scoped CSS', () => {
       ".foo .bar { color: red;
       }"
     `)
+    // global keep anything after it
+    expect(compileScoped(`::v-global(.foo .bar) .baz .qux { color: red; }`))
+      .toMatchInlineSnapshot(`
+    ".foo .bar .baz .qux { color: red;
+    }"
+  `)
   })
 
   test('media query', () => {
