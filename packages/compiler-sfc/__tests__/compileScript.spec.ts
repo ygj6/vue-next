@@ -10,6 +10,8 @@ describe('SFC compile <script setup>', () => {
       const b = 2
       function c() {}
       class d {}
+      const e = { bb: 1 }
+      const { bb: f } = e
       </script>
 
       <script>
@@ -20,13 +22,17 @@ describe('SFC compile <script setup>', () => {
       class dd {}
       </script>
       `)
-    expect(content).toMatch('return { aa, bb, cc, dd, a, b, c, d, xx, x }')
+    expect(content).toMatch(
+      'return { aa, bb, cc, dd, a, b, c, d, e, f, xx, x }'
+    )
     expect(bindings).toStrictEqual({
       x: BindingTypes.SETUP_MAYBE_REF,
       a: BindingTypes.SETUP_LET,
       b: BindingTypes.SETUP_CONST,
       c: BindingTypes.SETUP_CONST,
       d: BindingTypes.SETUP_CONST,
+      e: BindingTypes.SETUP_CONST,
+      f: BindingTypes.SETUP_MAYBE_REF,
       xx: BindingTypes.SETUP_MAYBE_REF,
       aa: BindingTypes.SETUP_LET,
       bb: BindingTypes.SETUP_CONST,

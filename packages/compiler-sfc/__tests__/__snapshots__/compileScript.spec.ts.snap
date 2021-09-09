@@ -692,8 +692,10 @@ export default {
       const b = 2
       function c() {}
       class d {}
+      const e = { bb: 1 }
+      const { bb: f } = e
       
-return { aa, bb, cc, dd, a, b, c, d, xx, x }
+return { aa, bb, cc, dd, a, b, c, d, e, f, xx, x }
 }
 
 }

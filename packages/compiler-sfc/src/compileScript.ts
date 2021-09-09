@@ -1348,8 +1348,8 @@ function walkObjectPattern(
   for (const p of node.properties) {
     if (p.type === 'ObjectProperty') {
       // key can only be Identifier in ObjectPattern
-      if (p.key.type === 'Identifier') {
-        if (p.key === p.value) {
+      if (p.key.type === 'Identifier' || p.value.type === 'Identifier') {
+        if (p.key === p.value && p.key.type === 'Identifier') {
           // const { x } = ...
           const type = isDefineCall
             ? BindingTypes.SETUP_CONST
