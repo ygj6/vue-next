@@ -13,7 +13,10 @@ import {
   createTextVNode,
   createBlock,
   openBlock,
-  createCommentVNode
+  createCommentVNode,
+  createElementBlock,
+  renderSlot,
+  withCtx
 } from '@vue/runtime-test'
 import { PatchFlags } from '@vue/shared'
 import { renderList } from '../src/helpers/renderList'
@@ -314,5 +317,65 @@ describe('renderer: fragment', () => {
     expect(serializeInner(root)).toBe(
       `<!--comment--><span></span><div>two</div><!--comment--><span></span><div>one</div>`
     )
+  })
+
+  // #5546
+  it('FRAGMENT attribute fallthrough', async () => {
+    __DEV__ = false
+    const Child = {
+      props: {
+        enabled: Boolean,
+        button: Boolean
+      },
+      setup(__props: any) {
+        return (_ctx: any, _cache: any) => {
+          return __props.enabled
+            ? (openBlock(),
+              createElementBlock(
+                Fragment,
+                { key: 0 },
+                [
+                  __props.button
+                    ? (openBlock(),
+                      createElementBlock('button', { key: 0 }, [
+                        renderSlot(_ctx.$slots, 'default')
+                      ]))
+                    : createCommentVNode('', true)
+                ],
+                PatchFlags.STABLE_FRAGMENT
+              ))
+            : createCommentVNode('', true)
+        }
+      }
+    }
+    const App = {
+      setup(__props: any) {
+        return (_ctx: any, _cache: any) => {
+          return (
+            openBlock(),
+            createBlock(
+              Child,
+              {
+                enabled: '',
+                button: '',
+                class: 'red-bg'
+              },
+              {
+                default: withCtx(() => [createTextVNode(' Hello world ')]),
+                _: 1
+              }
+            )
+          )
+        }
+      }
+    }
+    const root = nodeOps.createElement('div')
+    render(h(App), root)
+    expect(serializeInner(root)).toBe(
+      `<button class=\"red-bg\"> Hello world </button>`
+    )
+    expect(root.children.length).toBe(1)
+    const node = root.children[0] as TestElement
+    expect(node.props.class).toBe('red-bg')
   })
 })

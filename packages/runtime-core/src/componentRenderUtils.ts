@@ -126,6 +126,8 @@ export function renderComponentRoot(
     __DEV__ &&
     result.patchFlag > 0 &&
     result.patchFlag & PatchFlags.DEV_ROOT_FRAGMENT
+    || result.patchFlag > 0 &&
+    result.patchFlag & PatchFlags.STABLE_FRAGMENT
   ) {
     ;[root, setRoot] = getChildRoot(result)
   }
