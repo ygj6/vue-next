@@ -1,7 +1,8 @@
 import type { CodegenContext } from '../generate'
-import type { SetPropIRNode } from '../ir'
+import type { SetArrPropsIRNode, SetObjPropsIRNode, SetPropIRNode } from '../ir'
 import { genExpression } from './expression'
 import { isString } from '@vue/shared'
+import { NewlineType } from '@vue/compiler-core'
 
 export function genSetProp(oper: SetPropIRNode, context: CodegenContext) {
   const { pushFnCall, pushMulti, newline, vaporHelper, helper } = context
@@ -62,5 +63,69 @@ export function genSetProp(oper: SetPropIRNode, context: CodegenContext) {
       }
     },
     () => genExpression(oper.value, context),
+  )
+}
+
+export function genSetObjProps(
+  oper: SetObjPropsIRNode,
+  context: CodegenContext,
+) {
+  const { push, pushFnCall, newline, vaporHelper } = context
+
+  newline()
+
+  pushFnCall(vaporHelper('setObjProps'), `n${oper.element}`, () => {
+    // TODO genObjectExpression
+    if (!oper.value) {
+      push('{}', NewlineType.None, oper.loc)
+    }
+    push('{')
+    for (let i = 0; i < oper.value.length; i++) {
+      const { key, value } = oper.value[i]
+      push('[')
+      genExpression(key, context)
+      push(']:')
+      genExpression(value, context)
+      push(',')
+    }
+    push('}')
+  })
+}
+
+export function genSetArrProps(
+  oper: SetArrPropsIRNode,
+  context: CodegenContext,
+) {
+  const { push, pushFnCall, newline, vaporHelper } = context
+
+  newline()
+  pushFnCall(
+    vaporHelper('setArrProps'),
+    `n${oper.element}`,
+    () => {
+      // TODO genArrayExpression
+      push('[')
+      for (let i = 0; i < oper.value.length; i++) {
+        const props = oper.value[i]
+        for (const prop of props) {
+          // TODO genObjectExpression
+          if ('key' in prop) {
+            push('{')
+            const { key, value } = prop
+            push('[')
+            genExpression(key, context)
+            push(']:')
+            genExpression(value, context)
+            push(',')
+            push('}')
+          } else {
+            genExpression(prop, context)
+          }
+          push(',')
+        }
+      }
+      push(']')
+    },
+    `${oper.needMerge}`,
   )
 }

@@ -9,7 +9,7 @@ import {
   type RootNode,
   type TemplateChildNode,
   defaultOnError,
-  defaultOnWarn,
+  defaultOnWarn, type Property,
   isVSlot,
 } from '@vue/compiler-dom'
 import { EMPTY_OBJ, NOOP, extend, isArray, isString } from '@vue/shared'
@@ -36,7 +36,13 @@ export type DirectiveTransform = (
   dir: VaporDirectiveNode,
   node: ElementNode,
   context: TransformContext<ElementNode>,
-) => void
+) => void | DirectiveTransformResult
+
+export interface DirectiveTransformResult {
+  props: Property[]
+  modifier?: '.' | '^'
+  runtimeCamelize: boolean
+}
 
 // A structural directive transform is technically also a NodeTransform;
 // Only v-if and v-for fall into this category.

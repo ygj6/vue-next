@@ -20,7 +20,7 @@ import {
 import { SourceMapGenerator } from 'source-map-js'
 import { isString } from '@vue/shared'
 import type { ParserPlugin } from '@babel/parser'
-import { genSetProp } from './generators/prop'
+import { genSetArrProps, genSetObjProps, genSetProp } from './generators/prop'
 import { genCreateTextNode, genSetText } from './generators/text'
 import { genSetEvent } from './generators/event'
 import { genSetHtml } from './generators/html'
@@ -348,6 +348,10 @@ function genOperation(oper: OperationNode, context: CodegenContext) {
   switch (oper.type) {
     case IRNodeTypes.SET_PROP:
       return genSetProp(oper, context)
+    case IRNodeTypes.SET_OBJ_PROPS:
+      return genSetObjProps(oper, context)
+    case IRNodeTypes.SET_ARR_PROPS:
+      return genSetArrProps(oper, context)
     case IRNodeTypes.SET_TEXT:
       return genSetText(oper, context)
     case IRNodeTypes.SET_EVENT:

@@ -16,6 +16,8 @@ export enum IRNodeTypes {
   FRAGMENT_FACTORY,
 
   SET_PROP,
+  SET_OBJ_PROPS,
+  SET_ARR_PROPS,
   SET_TEXT,
   SET_EVENT,
   SET_HTML,
@@ -81,6 +83,19 @@ export interface SetPropIRNode extends BaseIRNode {
   value: IRExpression
   modifier?: '.' | '^'
   runtimeCamelize: boolean
+}
+
+export interface SetObjPropsIRNode extends BaseIRNode {
+  type: IRNodeTypes.SET_OBJ_PROPS
+  element: number
+  value: any
+}
+
+export interface SetArrPropsIRNode extends BaseIRNode {
+  type: IRNodeTypes.SET_ARR_PROPS
+  element: number
+  value: any
+  needMerge: boolean
 }
 
 export interface SetTextIRNode extends BaseIRNode {
@@ -166,6 +181,8 @@ export type IRNode =
   | FragmentFactoryIRNode
 export type OperationNode =
   | SetPropIRNode
+  | SetObjPropsIRNode
+  | SetArrPropsIRNode
   | SetTextIRNode
   | SetEventIRNode
   | SetHtmlIRNode

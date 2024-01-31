@@ -1,11 +1,13 @@
 import {
-  isFunction,
+  type Data, isArray,
+  isFunction, isOn,
   isString,
   normalizeClass,
   normalizeStyle,
-  toDisplayString,
+  toDisplayString
 } from '@vue/shared'
 import { currentInstance } from '../component'
+import { VNodeProps } from '@vue/runtime-core'
 
 export function setClass(el: Element, value: any) {
   const prev = recordPropMetadata(el, 'class', (value = normalizeClass(value)))
@@ -63,6 +65,55 @@ export function setDynamicProp(el: Element, key: string, value: any) {
     // TODO special case for <input v-model type="checkbox">
     setAttr(el, key, value)
   }
+}
+
+export function setObjProps(el: Element, value: any) {
+  // TODO has dynamic key, remove old prop before set new prop
+  for (const key in value) {
+    setDynamicProp(el, key, value[key])
+  }
+}
+
+export function setArrProps(el: Element, value: any, needMerge: boolean) {
+  if (needMerge) {
+    setObjProps(el, mergeProps(...value))
+  } else {
+    for (const props of value) {
+      setObjProps(el, props)
+    }
+  }
+}
+
+// TODO copied from runtime-core
+function mergeProps(...args: (Data & VNodeProps)[]) {
+  const ret: Data = {}
+  for (let i = 0; i < args.length; i++) {
+    const toMerge = args[i]
+    for (const key in toMerge) {
+      if (key === 'class') {
+        if (ret.class !== toMerge.class) {
+          ret.class = normalizeClass([ret.class, toMerge.class])
+        }
+      } else if (key === 'style') {
+        ret.style = normalizeStyle([ret.style, toMerge.style])
+      } else if (isOn(key)) {
+        const existing = ret[key]
+        const incoming = toMerge[key]
+        if (
+          incoming &&
+          existing !== incoming &&
+          !(isArray(existing) && existing.includes(incoming))
+        ) {
+          ret[key] = existing
+            ? [].concat(existing as any, incoming as any)
+            : incoming
+        }
+      } else if (key !== '') {
+        ret[key] = toMerge[key]
+      }
+    }
+  }
+  return ret
 }
 
 export function recordPropMetadata(el: Node, key: string, value: any): any {
