@@ -1,21 +1,29 @@
 import {
   type AttributeNode,
-  createCompilerError,
   type ElementNode,
   ElementTypes,
   ErrorCodes,
-  ExpressionNode,
-  isStaticExp,
   NodeTypes,
-  type ObjectExpression,
+  type SimpleExpressionNode,
+  createCompilerError,
 } from '@vue/compiler-dom'
-import { isBuiltInDirective, isReservedProp, isVoidTag } from '@vue/shared'
 import {
+  isBuiltInDirective,
+  isReservedProp,
+  isString,
+  isVoidTag,
+} from '@vue/shared'
+import type {
   DirectiveTransformResult,
   NodeTransform,
   TransformContext,
 } from '../transform'
-import { IRNodeTypes, type VaporDirectiveNode } from '../ir'
+import {
+  type IRExpression,
+  IRNodeTypes,
+  type PropsExpression,
+  type VaporDirectiveNode,
+} from '../ir'
 
 export const transformElement: NodeTransform = (node, ctx) => {
   return function postTransformElement() {
@@ -58,15 +66,16 @@ function buildProps(
   props: ElementNode['props'] = node.props,
   isComponent: boolean,
 ) {
-  const expressions = []
-  const properties: ObjectExpression['properties'] = []
-  const mergeArgs: ExpressionNode[] = []
+  const elementLoc = node.loc
+  const expressions: IRExpression[] = []
+  let transformResults: DirectiveTransformResult[] = []
+  const mergeArgs: PropsExpression[] = []
 
-  const pushMergeArg = (arg?: ExpressionNode) => {
-    if (properties.length) {
-      // TODO dedupe properties
-      mergeArgs.push([...properties])
-      properties.length = 0
+  const pushMergeArg = () => {
+    if (transformResults.length) {
+      // TODO dedupe
+      mergeArgs.push([...transformResults])
+      transformResults.length = 0
     }
   }
 
@@ -77,8 +86,8 @@ function buildProps(
         if (prop.exp) {
           if (isVBind) {
             pushMergeArg()
-            expressions.push(prop.exp)
-            mergeArgs.push([prop.exp])
+            expressions.push(prop.exp as SimpleExpressionNode)
+            mergeArgs.push(prop.exp as SimpleExpressionNode)
           }
         } else {
           context.options.onError(
@@ -94,73 +103,50 @@ function buildProps(
       node,
       context,
     )
+    // the prop need to be merged
     if (result) {
-      const { props: propsObj } = result
-      for (const prop of propsObj) {
-        !isStaticExp(prop.key) && expressions.push(prop.key)
-        !isStaticExp(prop.value) && expressions.push(prop.value)
-      }
-      properties.push(...propsObj)
+      expressions.push(result.key, result.value)
+      transformResults.push(result)
     }
   }
 
   if (mergeArgs.length) {
     pushMergeArg()
-    if (mergeArgs.length > 1) {
-      context.registerEffect(expressions, [
-        {
-          type: IRNodeTypes.SET_ARR_PROPS,
-          loc: node.loc,
-          element: context.reference(),
-          value: mergeArgs,
-          needMerge: true,
-        },
-      ])
-    } else {
-      context.registerEffect(expressions, [
-        {
-          type: IRNodeTypes.SET_ARR_PROPS,
-          loc: node.loc,
-          element: context.reference(),
-          value: mergeArgs,
-          needMerge: false,
-        },
-      ])
-    }
-  } else if (properties.length) {
+    context.registerEffect(expressions, [
+      {
+        type: IRNodeTypes.SET_MERGE_BATCH_PROPS,
+        loc: elementLoc,
+        element: context.reference(),
+        value: mergeArgs,
+      },
+    ])
+  } else if (transformResults.length) {
     let hasDynamicKey = false
-    for (let i = 0; i < properties.length; i++) {
-      const key = properties[i].key
-      if (isStaticExp(key)) {
-        // todo
+    for (let i = 0; i < transformResults.length; i++) {
+      const key = transformResults[i].key
+      if (isString(key) || key.isStatic) {
+        // TODO
       } else if (!key.isHandlerKey) {
         hasDynamicKey = true
       }
     }
     if (!hasDynamicKey) {
       // TODO handle class/style prop
-      for (const prop of properties) {
-        context.registerEffect(
-          [prop.value],
-          [
-            {
-              ...prop,
-              type: IRNodeTypes.SET_PROP,
-              loc: prop.loc,
-              element: context.reference(),
-              key: prop.key,
-              value: prop.value,
-            },
-          ],
-        )
-      }
+      context.registerEffect(expressions, [
+        {
+          type: IRNodeTypes.SET_PROP,
+          loc: elementLoc,
+          element: context.reference(),
+          value: transformResults,
+        },
+      ])
     } else {
       context.registerEffect(expressions, [
         {
-          type: IRNodeTypes.SET_OBJ_PROPS,
-          loc: node.loc,
+          type: IRNodeTypes.SET_BATCH_PROPS,
+          loc: elementLoc,
           element: context.reference(),
-          value: properties,
+          value: transformResults,
         },
       ])
     }

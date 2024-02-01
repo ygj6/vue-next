@@ -1,19 +1,27 @@
 import type { CodegenContext } from '../generate'
-import type { SetArrPropsIRNode, SetObjPropsIRNode, SetPropIRNode } from '../ir'
+import type {
+  SetBatchPropsIRNode,
+  SetMergeBatchPropsIRNode,
+  SetPropIRNode,
+} from '../ir'
 import { genExpression } from './expression'
 import { isString } from '@vue/shared'
-import { NewlineType } from '@vue/compiler-core'
+import {
+  type ObjectExpression,
+  type SourceLocation,
+  createObjectExpression,
+  createObjectProperty,
+} from '@vue/compiler-core'
+import { genObjectExpression } from './objectExpression'
+import type { DirectiveTransformResult } from '../transform'
 
 export function genSetProp(oper: SetPropIRNode, context: CodegenContext) {
-  const { pushFnCall, pushMulti, newline, vaporHelper, helper } = context
+  const { pushFnCall, newline, vaporHelper } = context
 
   newline()
 
-  const element = `n${oper.element}`
-
-  // fast path for static props
-  if (isString(oper.key) || oper.key.isStatic) {
-    const keyName = isString(oper.key) ? oper.key : oper.key.content
+  for (const { key, value, modifier } of oper.value) {
+    const keyName = isString(key) ? key : key.content
 
     let helperName: string | undefined
     let omitKey = false
@@ -23,109 +31,68 @@ export function genSetProp(oper: SetPropIRNode, context: CodegenContext) {
     } else if (keyName === 'style') {
       helperName = 'setStyle'
       omitKey = true
-    } else if (oper.modifier) {
-      helperName = oper.modifier === '.' ? 'setDOMProp' : 'setAttr'
+    } else if (modifier) {
+      helperName = modifier === '.' ? 'setDOMProp' : 'setAttr'
     }
 
     if (helperName) {
       pushFnCall(
         vaporHelper(helperName),
-        element,
-        omitKey
-          ? false
-          : () => {
-              const expr = () => genExpression(oper.key, context)
-              if (oper.runtimeCamelize) {
-                pushFnCall(helper('camelize'), expr)
-              } else {
-                expr()
-              }
-            },
-        () => genExpression(oper.value, context),
+        `n${oper.element}`,
+        omitKey ? false : () => genExpression(key, context),
+        () => genExpression(value, context),
       )
-      return
     }
   }
-
-  pushFnCall(
-    vaporHelper('setDynamicProp'),
-    element,
-    // 2. key name
-    () => {
-      if (oper.runtimeCamelize) {
-        pushFnCall(helper('camelize'), () => genExpression(oper.key, context))
-      } else if (oper.modifier) {
-        pushMulti([`\`${oper.modifier}\${`, `}\``], () =>
-          genExpression(oper.key, context),
-        )
-      } else {
-        genExpression(oper.key, context)
-      }
-    },
-    () => genExpression(oper.value, context),
-  )
 }
 
-export function genSetObjProps(
-  oper: SetObjPropsIRNode,
+export function genSetBatchProps(
+  oper: SetBatchPropsIRNode,
   context: CodegenContext,
 ) {
-  const { push, pushFnCall, newline, vaporHelper } = context
+  const { pushFnCall, newline, vaporHelper } = context
 
   newline()
 
-  pushFnCall(vaporHelper('setObjProps'), `n${oper.element}`, () => {
-    // TODO genObjectExpression
-    if (!oper.value) {
-      push('{}', NewlineType.None, oper.loc)
-    }
-    push('{')
-    for (let i = 0; i < oper.value.length; i++) {
-      const { key, value } = oper.value[i]
-      push('[')
-      genExpression(key, context)
-      push(']:')
-      genExpression(value, context)
-      push(',')
-    }
-    push('}')
+  pushFnCall(vaporHelper('setBatchProps'), `n${oper.element}`, () =>
+    genLiteralObjectProp(oper.value, oper.loc, context),
+  )
+}
+
+export function genMergeBatchProps(
+  oper: SetMergeBatchPropsIRNode,
+  context: CodegenContext,
+) {
+  const { pushMulti, pushFnCall, newline, vaporHelper } = context
+
+  newline()
+  pushFnCall(vaporHelper('mergeBatchProps'), `n${oper.element}`, () => {
+    pushMulti(
+      ['[', ']', ', '],
+      // props to be merged
+      ...oper.value.map(prop => () => {
+        Array.isArray(prop)
+          ? genLiteralObjectProp(prop, oper.loc, context)
+          : genExpression(prop, context)
+      }),
+    )
   })
 }
 
-export function genSetArrProps(
-  oper: SetArrPropsIRNode,
+function genLiteralObjectProp(
+  prop: DirectiveTransformResult[],
+  loc: SourceLocation,
   context: CodegenContext,
 ) {
-  const { push, pushFnCall, newline, vaporHelper } = context
-
-  newline()
-  pushFnCall(
-    vaporHelper('setArrProps'),
-    `n${oper.element}`,
-    () => {
-      // TODO genArrayExpression
-      push('[')
-      for (let i = 0; i < oper.value.length; i++) {
-        const props = oper.value[i]
-        for (const prop of props) {
-          // TODO genObjectExpression
-          if ('key' in prop) {
-            push('{')
-            const { key, value } = prop
-            push('[')
-            genExpression(key, context)
-            push(']:')
-            genExpression(value, context)
-            push(',')
-            push('}')
-          } else {
-            genExpression(prop, context)
-          }
-          push(',')
-        }
-      }
-      push(']')
-    },
-    `${oper.needMerge}`,
-  )
+  const { helper } = context
+  const properties: ObjectExpression['properties'] = []
+  for (const { key, value, runtimeCamelize, modifier } of prop) {
+    if (runtimeCamelize) {
+      key.content = `${helper('camelize')}(${key.content})`
+    } else if (modifier) {
+      key.content = `${modifier}${key.content}`
+    }
+    properties.push(createObjectProperty(key, value))
+  }
+  genObjectExpression(createObjectExpression(properties, loc), context)
 }

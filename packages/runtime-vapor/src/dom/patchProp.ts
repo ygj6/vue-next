@@ -1,13 +1,15 @@
 import {
-  type Data, isArray,
-  isFunction, isOn,
+  type Data,
+  isArray,
+  isFunction,
+  isOn,
   isString,
   normalizeClass,
   normalizeStyle,
-  toDisplayString
+  toDisplayString,
 } from '@vue/shared'
 import { currentInstance } from '../component'
-import { VNodeProps } from '@vue/runtime-core'
+import type { VNodeProps } from '@vue/runtime-core'
 
 export function setClass(el: Element, value: any) {
   const prev = recordPropMetadata(el, 'class', (value = normalizeClass(value)))
@@ -67,21 +69,17 @@ export function setDynamicProp(el: Element, key: string, value: any) {
   }
 }
 
-export function setObjProps(el: Element, value: any) {
-  // TODO has dynamic key, remove old prop before set new prop
+export function setBatchProps(el: Element, value: any) {
+  // TODO remove all of old props before set new props since there is containing dynamic key
   for (const key in value) {
     setDynamicProp(el, key, value[key])
   }
 }
 
-export function setArrProps(el: Element, value: any, needMerge: boolean) {
-  if (needMerge) {
-    setObjProps(el, mergeProps(...value))
-  } else {
-    for (const props of value) {
-      setObjProps(el, props)
-    }
-  }
+export function mergeBatchProps(el: Element, value: any) {
+  value.length > 1
+    ? setBatchProps(el, mergeProps(...value))
+    : setBatchProps(el, value[0])
 }
 
 // TODO copied from runtime-core

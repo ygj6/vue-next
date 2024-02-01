@@ -8,7 +8,11 @@ import type {
   TemplateChildNode,
 } from '@vue/compiler-dom'
 import type { Prettify } from '@vue/shared'
-import type { DirectiveTransform, NodeTransform } from './transform'
+import type {
+  DirectiveTransform,
+  DirectiveTransformResult,
+  NodeTransform,
+} from './transform'
 
 export enum IRNodeTypes {
   ROOT,
@@ -16,8 +20,8 @@ export enum IRNodeTypes {
   FRAGMENT_FACTORY,
 
   SET_PROP,
-  SET_OBJ_PROPS,
-  SET_ARR_PROPS,
+  SET_BATCH_PROPS,
+  SET_MERGE_BATCH_PROPS,
   SET_TEXT,
   SET_EVENT,
   SET_HTML,
@@ -79,23 +83,20 @@ export interface FragmentFactoryIRNode extends BaseIRNode {
 export interface SetPropIRNode extends BaseIRNode {
   type: IRNodeTypes.SET_PROP
   element: number
-  key: IRExpression
-  value: IRExpression
-  modifier?: '.' | '^'
-  runtimeCamelize: boolean
+  value: DirectiveTransformResult[]
 }
 
-export interface SetObjPropsIRNode extends BaseIRNode {
-  type: IRNodeTypes.SET_OBJ_PROPS
+export interface SetBatchPropsIRNode extends BaseIRNode {
+  type: IRNodeTypes.SET_BATCH_PROPS
   element: number
-  value: any
+  value: DirectiveTransformResult[]
 }
 
-export interface SetArrPropsIRNode extends BaseIRNode {
-  type: IRNodeTypes.SET_ARR_PROPS
+export type PropsExpression = DirectiveTransformResult[] | IRExpression
+export interface SetMergeBatchPropsIRNode extends BaseIRNode {
+  type: IRNodeTypes.SET_MERGE_BATCH_PROPS
   element: number
-  value: any
-  needMerge: boolean
+  value: PropsExpression[]
 }
 
 export interface SetTextIRNode extends BaseIRNode {
@@ -181,8 +182,8 @@ export type IRNode =
   | FragmentFactoryIRNode
 export type OperationNode =
   | SetPropIRNode
-  | SetObjPropsIRNode
-  | SetArrPropsIRNode
+  | SetBatchPropsIRNode
+  | SetMergeBatchPropsIRNode
   | SetTextIRNode
   | SetEventIRNode
   | SetHtmlIRNode
